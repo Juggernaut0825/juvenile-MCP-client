@@ -1,0 +1,33 @@
+{
+    "name": "mcp-client",
+    "version": "1.0.0",
+    "description": "HTTP-Transport MCP Client with Gemini 2.5 Pro (OpenRouter)",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "start": "node launcher.js",
+        "demo": "node index.js",
+        "interactive": "node interactive.js",
+        "dev": "node --watch interactive.js",
+        "test": "node index.js",
+        "check": "node launcher.js",
+        "test-docs": "node example-usage.js",
+        "status": "node check-status.js"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "dotenv": "^17.0.1",
+        "node-fetch": "^3.3.2"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0"
+    },
+    "keywords": [
+        "mcp",
+        "client",
+        "gemini",
+        "openrouter"
+    ],
+    "author": "",
+    "license": "MIT"
+}
