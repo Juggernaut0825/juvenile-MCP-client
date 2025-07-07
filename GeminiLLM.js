@@ -1,5 +1,5 @@
 export class GeminiLLM {
-    constructor(apiKey, model = "google/gemini-pro-1.5") {
+    constructor(apiKey, model = "google/gemini-pro-2.5") {
         this.apiKey = apiKey;
         this.model = model;
         this.baseUrl = "https://openrouter.ai/api/v1/chat/completions";
@@ -16,10 +16,13 @@ export class GeminiLLM {
                 max_tokens: 4000
             };
 
-            // Add tools if provided
-            if (tools && tools.length > 0) {
+            // Only add tools if they exist and are valid
+            if (tools && Array.isArray(tools) && tools.length > 0) {
                 requestBody.tools = tools;
                 requestBody.tool_choice = "auto";
+                console.log(`🔧 Including ${tools.length} tool(s) in request`);
+            } else {
+                console.log(`💬 Sending chat-only request (no tools available)`);
             }
 
             const response = await fetch(this.baseUrl, {
@@ -40,6 +43,11 @@ export class GeminiLLM {
 
             const result = await response.json();
             console.log(`✅ Received response from Gemini`);
+
+            // Validate response structure
+            if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
+                throw new Error("Invalid response format from OpenRouter API");
+            }
 
             return result;
         } catch (error) {

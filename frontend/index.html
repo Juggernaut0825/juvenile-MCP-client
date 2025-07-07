@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Client - Visual Interface</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <span>MCP Client</span>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    <div class="status-indicator connecting" id="statusIndicator"></div>
+                    <span id="statusText">Connecting...</span>
+                    <div class="minio-status" id="minioStatus" style="margin-left: 16px;">
+                        <i class="fas fa-database"></i>
+                        <span id="minioStatusText">MinIO</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Tools Panel -->
+            <aside class="tools-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-tools"></i> MCP Tools</h3>
+                    <button class="refresh-btn" id="refreshTools" title="Refresh Tools">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+
+                <div class="panel-content">
+                    <div class="servers-section">
+                        <div class="section-header">
+                            <h4><i class="fas fa-server"></i> Servers</h4>
+                            <div class="section-info">
+                                <span class="server-count" id="serverCount">0</span>
+                                <button class="add-server-btn" id="addServerBtn" title="Add MCP Server">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="scrollable-content">
+                            <div class="servers-list" id="serversList">
+                                <!-- Server items will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tools-section">
+                        <div class="section-header">
+                            <h4><i class="fas fa-wrench"></i> Available Tools</h4>
+                            <div class="section-info">
+                                <span class="tool-count-badge" id="toolCountBadge">0</span>
+                            </div>
+                        </div>
+                        <div class="scrollable-content">
+                            <div class="tools-list" id="toolsList">
+                                <!-- Tool items will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-footer">
+                    <button class="cpolar-test-btn" id="cpolarTest">
+                        <i class="fas fa-globe"></i>
+                        Test Cpolar
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Chat Interface -->
+            <main class="chat-container">
+                <div class="chat-header">
+                    <h2><i class="fas fa-comments"></i> Chat with AI</h2>
+                    <div class="model-info">
+                        <span>Gemini 2.5 Pro via OpenRouter</span>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message system-message">
+                        <div class="message-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>Welcome to MCP Client! I can help you use connected MCP tools for document generation and
+                                more.</p>
+                            <p>Try asking: <em>"Generate a renovation report document"</em></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-container">
+                    <div class="input-wrapper">
+                        <textarea id="chatInput" placeholder="Ask me to use MCP tools..." rows="1"></textarea>
+                        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.json,.csv,.xlsx" multiple
+                            style="display: none;">
+                        <button class="file-upload-btn" id="fileUploadBtn" title="Upload files">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <button class="send-btn" id="sendBtn" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-info">
+                        <span class="tool-count" id="toolCount">0 tools available</span>
+                        <div class="uploaded-files" id="uploadedFiles" style="display: none;">
+                            <span class="files-label">📎 Files:</span>
+                            <div class="files-list" id="filesList"></div>
+                        </div>
+                        <span class="typing-indicator" id="typingIndicator" style="display: none;">
+                            <i class="fas fa-circle"></i>
+                            <i class="fas fa-circle"></i>
+                            <i class="fas fa-circle"></i>
+                            AI is thinking...
+                        </span>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Loading Modal -->
+        <div class="modal" id="loadingModal" style="display: none;">
+            <div class="modal-content">
+                <div class="loading-spinner"></div>
+                <p>Processing your request...</p>
+            </div>
+        </div>
+
+        <!-- Error Modal -->
+        <div class="modal" id="errorModal" style="display: none;">
+            <div class="modal-content error">
+                <div class="modal-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                    <button class="close-btn" onclick="closeModal('errorModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p id="errorMessage">An error occurred</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Modal -->
+        <div class="modal" id="downloadModal" style="display: none;">
+            <div class="modal-content download">
+                <div class="modal-header">
+                    <h3><i class="fas fa-download"></i> Document Ready</h3>
+                    <button class="close-btn" onclick="closeModal('downloadModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="download-info" id="downloadInfo">
+                        <!-- Download information will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Server Configuration Modal -->
+        <div class="modal" id="serverConfigModal" style="display: none;">
+            <div class="modal-content server-config">
+                <div class="modal-header">
+                    <h3 id="serverModalTitle"><i class="fas fa-server"></i> Add MCP Server</h3>
+                    <button class="close-btn" onclick="closeModal('serverConfigModal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="serverConfigForm">
+                        <div class="form-group">
+                            <label for="serverName">Server Name *</label>
+                            <input type="text" id="serverName" placeholder="e.g., my-mcp-server" required>
+                            <small>Unique identifier for your MCP server</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="serverType">Server Type *</label>
+                            <select id="serverType" required>
+                                <option value="fastapi-mcp">FastAPI-MCP Server</option>
+                                <option value="standard">Standard MCP Server</option>
+                            </select>
+                            <small>Choose the type of MCP server implementation</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="serverUrl">Server URL *</label>
+                            <input type="url" id="serverUrl"
+                                placeholder="http://127.0.0.1:4242 or https://abc123.cpolar.top" required>
+                            <small>Full URL where your MCP server is running</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="serverEnabled" checked>
+                                <span class="checkmark"></span>
+                                Enable server immediately
+                            </label>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('serverConfigModal')">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="saveServerBtn">
+                                <i class="fas fa-save"></i> Add Server
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

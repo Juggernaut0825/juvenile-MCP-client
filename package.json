@@ -12,11 +12,18 @@
         "test": "node index.js",
         "check": "node launcher.js",
         "test-docs": "node example-usage.js",
-        "status": "node check-status.js"
+        "status": "node check-status.js",
+        "cpolar-test": "node cpolar-helper.js test",
+        "cpolar-help": "node cpolar-helper.js instructions",
+        "web": "node web-server.js",
+        "test-minio": "node test-minio-integration.js"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",
         "dotenv": "^17.0.1",
+        "express": "^4.21.2",
+        "minio": "^8.0.5",
+        "multer": "^2.0.1",
         "node-fetch": "^3.3.2"
     },
     "devDependencies": {

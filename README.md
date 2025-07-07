@@ -1,33 +1,100 @@
-# MCP Client with Gemini 2.5 Pro (OpenRouter)
+# 🎯 MCP Client with Intelligent Gemini 2.5 Pro
 
-⚠️ **SECURITY NOTICE**: This project now uses environment variables for API keys.
+**An intelligent MCP (Model Context Protocol) client that works just like Cursor** - natural conversations with smart tool usage when needed.
 
-## Quick Setup
+## ✨ Key Features
 
-1. **Copy the environment template:**
-   ```bash
-   cp .env.example .env
-   ```
+🧠 **Intelligent Conversations** - Chat naturally without forced tool calling  
+🔧 **Smart Tool Usage** - AI decides when tools are needed, not hardcoded behavior  
+🌐 **Multiple MCP Servers** - Connect to any MCP-compatible server  
+🎨 **Beautiful Web Interface** - Cursor-inspired UI with real-time tool management  
+⚡ **Dynamic Server Toggle** - Enable/disable servers on the fly  
+📱 **Multiple Interfaces** - Web UI, interactive CLI, or programmatic usage
 
-2. **Add your OpenRouter API key to `.env`:**
-   ```bash
-   OPENROUTER_API_KEY=sk-or-v1-your-actual-api-key-here
-   ```
+## 🚀 Quick Start
 
-3. **Never commit the `.env` file** - it's already in `.gitignore`
+```bash
+# Install dependencies
+npm install
 
-4. **Get your API key from:** https://openrouter.ai/keys
+# Set up your OpenRouter API key
+export OPENROUTER_API_KEY="sk-or-v1-your-key-here"
 
-A powerful HTTP-Transport MCP (Model Context Protocol) Client that integrates with Gemini 2.5 Pro via OpenRouter, enabling seamless tool calling and AI-powered interactions.
+# Start the web interface (recommended)
+npm run web
+# Open http://localhost:3000
 
-## 🚀 Features
+# Or use interactive CLI
+npm run interactive
+```
 
-- **HTTP Transport**: Connect to MCP servers via HTTP endpoints
-- **Gemini 2.5 Pro Integration**: Powered by Google's Gemini through OpenRouter
-- **Tool Discovery**: Automatically discovers and lists available tools from connected servers
-- **Function Calling**: Intelligent tool execution based on user queries
-- **Multi-Server Support**: Connect to multiple MCP servers simultaneously
-- **Graceful Error Handling**: Robust error management and recovery
+## 💬 How It Works (Like Cursor!)
+
+### ✅ Natural Conversations
+```
+User: "Hello"
+AI: "Hello! How can I help you today?" 
+    ↳ Natural greeting, no tools called
+
+User: "How are you?"
+AI: "I'm doing well! I'm here to help with various tasks..."
+    ↳ Conversational response, appropriate behavior
+```
+
+### ✅ Intelligent Tool Usage  
+```
+User: "Generate a renovation report"
+AI: "I'll create a renovation report for you..."
+    ↳ Calls insert_template tool → Creates document
+
+User: "What tools are available?"
+AI: "I have access to these tools: [lists available tools]"
+    ↳ Explains capabilities without calling tools
+```
+
+### ❌ Old Hardcoded Behavior (Fixed!)
+```
+❌ Before: "Hello" → "I'll generate a document..." → insert_template
+✅ Now: "Hello" → "Hello! How can I help you today?"
+
+❌ Before: "What's 2+2?" → Document generation attempt  
+✅ Now: "What's 2+2?" → "2+2 equals 4."
+```
+
+## 🔧 Adding New MCP Tools
+
+The system automatically discovers tools from connected servers. See **[HOW-TO-ADD-MCP-TOOLS.md](./HOW-TO-ADD-MCP-TOOLS.md)** for complete guide.
+
+### Quick Method: Add New Server
+
+1. **Edit `mcp-server-config.json`:**
+```json
+[
+  {
+    "name": "my-new-server",
+    "type": "fastapi-mcp", 
+    "url": "http://localhost:8000",
+    "isOpen": true
+  }
+]
+```
+
+2. **Start your MCP server** with tools at `/tools` endpoint
+
+3. **Restart the client** - tools are automatically discovered!
+
+### Supported Server Types
+- `"fastapi-mcp"` - FastAPI-based MCP servers  
+- `"http"` - Standard JSON-RPC MCP servers
+
+## 🎨 Web Interface Features
+
+**Cursor-Inspired Design:**
+- 🌙 Dark theme with modern UI
+- 🔧 **Server toggle switches** (just like Cursor!)
+- 💬 **Real-time chat** with tool execution
+- 📊 **Live status indicators** 
+- 🌐 **Auto-download detection** for generated files
 
 ## 📦 Installation
 
@@ -57,15 +124,22 @@ export default [
 ## 🏃‍♂️ Quick Start
 
 ```bash
-# Launch the main menu (recommended)
-npm start
+# 🌐 Web Interface (recommended for visual experience)
+npm run web
 
-# Direct commands:
-npm run interactive  # Interactive chat mode  
+# 🚀 Terminal Interface
+npm start           # Launch the main menu
+npm run interactive # Interactive chat mode  
+
+# 🔧 Testing & Status
 npm run status      # Check system status
 npm run test-docs   # Test document generation
 npm run demo        # Run automated demo
 npm run dev         # Development mode with auto-reload
+
+# 🌐 Cpolar tunneling support
+npm run cpolar-test # Test cpolar connectivity
+npm run cpolar-help # Show cpolar setup guide
 ```
 
 ## 🔧 Architecture
@@ -151,6 +225,34 @@ The client includes comprehensive error handling:
 - Tool execution errors
 - Server connection issues
 - Graceful shutdown on SIGINT/SIGTERM
+
+## 🌐 Web Interface
+
+**New!** Beautiful visual interface that mimics Cursor's MCP tools interface:
+
+```bash
+npm run web
+# Open http://localhost:3000 in your browser
+```
+
+**Features:**
+- 🎨 **Cursor-inspired Design**: Dark theme with modern UI elements
+- 🔧 **Visual Tool Management**: Toggle switches for servers (just like Cursor!)
+- 💬 **Interactive Chat**: Chat with AI and see tool execution in real-time
+- 📊 **Status Indicators**: Real-time connection and tool status
+- 🌐 **Download Integration**: Automatic detection of generated document URLs
+
+See **[WEB-INTERFACE.md](./WEB-INTERFACE.md)** for complete documentation.
+
+## 🌐 Cpolar Tunneling Setup
+
+For public access to generated files, see **[CPOLAR-SETUP.md](./CPOLAR-SETUP.md)** for complete setup instructions.
+
+Quick start:
+1. Start your FastAPI server with cpolar support
+2. Run `npm run cpolar-test` to test connectivity  
+3. Use `npm run cpolar-help` for detailed setup instructions
+4. Generated documents will include public download URLs
 
 ## 🔄 Development
 

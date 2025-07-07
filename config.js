@@ -35,13 +35,14 @@ export const config = {
     // OpenRouter API Key for Gemini 2.5 Pro (REQUIRED)
     openRouterApiKey:
         userConfig.openRouterApiKey ||
-        process.env.OPENROUTER_API_KEY,
+        process.env.OPENROUTER_API_KEY ||
+        "YOUR_OPENROUTER_API_KEY",
 
     // Gemini model to use
     geminiModel:
         userConfig.geminiModel ||
         process.env.GEMINI_MODEL ||
-        "google/gemini-pro-1.5",
+        "google/gemini-2.5-pro",
 
     // Debug logging
     debug:
@@ -66,6 +67,16 @@ export const config = {
         templatePath: resolve(projectRoot, "assets", "template_test.doc"),
         sampleDataPath: resolve(projectRoot, "assets", "sample_input.json"),
         outputDirectory: resolve(projectRoot, "outputs") + "/"
+    },
+
+    // MinIO Configuration
+    minio: {
+        endPoint: '43.139.19.144',
+        port: 9000,
+        useSSL: false,
+        accessKey: 'minioadmin',
+        secretKey: 'minioadmin',
+        bucket: 'mcp-files'
     }
 };
 

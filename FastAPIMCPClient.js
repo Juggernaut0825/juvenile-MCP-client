@@ -133,7 +133,12 @@ export class FastAPIMCPClient {
                 const queryParams = new URLSearchParams();
                 Object.entries(args).forEach(([key, value]) => {
                     if (value !== undefined && value !== null) {
-                        queryParams.append(key, String(value));
+                        // If the value is an object, it must be stringified to be sent as a query param.
+                        if (typeof value === 'object') {
+                            queryParams.append(key, JSON.stringify(value));
+                        } else {
+                            queryParams.append(key, String(value));
+                        }
                     }
                 });
 
@@ -171,12 +176,34 @@ export class FastAPIMCPClient {
             const result = await response.json();
             console.log(`✅ Tool result:`, result);
 
+            // Enhanced handling for cpolar/download URLs
+            let contentText = JSON.stringify(result, null, 2);
+
+            // If result contains download_url, format it nicely for the user
+            if (result.download_url) {
+                const downloadInfo = `
+
+🌐 **Download URL**: ${result.download_url}
+📁 **File**: ${result.file_info?.filename || 'Generated file'}
+📊 **Status**: ${result.status}
+💬 **Message**: ${result.message}
+
+✅ **Ready for Public Access**: Your document is now available via the download URL above.
+${result.download_url.includes('cpolar') ? '🚀 **Cpolar Tunnel Active**: File accessible from anywhere!' : '🏠 **Local Access**: File available on local network.'}`;
+
+                contentText = downloadInfo;
+
+                // Also log the download URL prominently
+                console.log(`\n🌐 DOWNLOAD URL: ${result.download_url}`);
+                console.log(`📁 FILE: ${result.file_info?.filename || 'Generated file'}`);
+            }
+
             // Return in MCP format
             return {
                 content: [
                     {
                         type: "text",
-                        text: JSON.stringify(result, null, 2)
+                        text: contentText
                     }
                 ]
             };

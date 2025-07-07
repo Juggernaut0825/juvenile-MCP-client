@@ -6,8 +6,8 @@ export const config = {
     // DO NOT set this here if you're using environment variables (.env file)
     // openRouterApiKey: "YOUR_OPENROUTER_API_KEY_HERE", // Commented out to use .env
 
-    // Gemini model to use (default: google/gemini-pro-1.5)
-    geminiModel: "google/gemini-pro-1.5",
+    // Gemini model to use (default: google/gemini-2.5-pro)
+    geminiModel: "google/gemini-2.5-pro",
 
     // Alternative models you can try:
     // "google/gemini-pro-vision" - for multimodal support

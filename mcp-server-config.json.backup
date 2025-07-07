@@ -1,0 +1,20 @@
+[
+  {
+    "name": "doc-gen-test",
+    "type": "fastapi-mcp",
+    "url": "http://63742e22.r12.cpolar.top",
+    "isOpen": true
+  },
+  {
+    "name": "local-mcp-server",
+    "type": "fastapi-mcp",
+    "url": "http://0.0.0.0:4242",
+    "isOpen": true
+  },
+  {
+    "name": "reverse-string-mcp",
+    "type": "fastapi-mcp",
+    "url": "http://3244391.r3.cpolar.cn",
+    "isOpen": true
+  }
+]

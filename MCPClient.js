@@ -1,9 +1,17 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import fs from 'fs';
+import { promises as fsPromises } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { HttpClientTransport } from "./HttpClientTransport.js";
 import { FastAPIMCPClient } from "./FastAPIMCPClient.js";
 import { GeminiLLM } from "./GeminiLLM.js";
+import { MinIOHelper } from "./MinIOHelper.js";
 import { config } from "./config.js";
-import mcpServers from "./mcp-server-config.js";
+// import mcpServers from "./mcp-server-config.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class MCPClient {
     constructor(openRouterApiKey = null) {
@@ -12,20 +20,42 @@ export class MCPClient {
         this.clients = new Map();
         this.allTools = [];
         this.config = config;
+        this.minioHelper = new MinIOHelper();
     }
 
     async initialize() {
         console.log("🚀 Initializing MCP Client...");
+        const mcpServers = this.getServerConfigs();
 
         // Connect to all enabled MCP servers
         for (const serverConfig of mcpServers) {
             if (serverConfig.isOpen) {
-                await this.connectToServer(serverConfig);
+                try {
+                    const fullServerConfig = {
+                        ...serverConfig,
+                        apiKey: this.openRouterApiKey,
+                    };
+                    await this.connectToServer(fullServerConfig);
+                } catch (error) {
+                    // Log the error but don't crash the application
+                    console.error(`-- SKIPPING SERVER: Failed to connect to ${serverConfig.name} on startup --`);
+                }
             }
         }
 
-        console.log(`✅ Connected to ${this.clients.size} MCP server(s)`);
-        console.log(`🔧 Available tools: ${this.allTools.length}`);
+        console.log(`✅ Initialization complete. Connected to ${this.clients.size} MCP server(s)`);
+        console.log(`🔧 Total available tools: ${this.allTools.length}`);
+    }
+
+    getServerConfigs() {
+        const configPath = path.resolve(__dirname, 'mcp-server-config.json');
+        try {
+            const fileContent = fs.readFileSync(configPath, 'utf-8');
+            return JSON.parse(fileContent);
+        } catch (error) {
+            console.error("❌ Error reading or parsing mcp-server-config.json:", error);
+            return [];
+        }
     }
 
     async connectToServer(serverConfig) {
@@ -65,6 +95,9 @@ export class MCPClient {
 
             this.clients.set(serverConfig.name, { client, config: serverConfig, type: isFastAPIMCP ? 'fastapi-mcp' : 'standard' });
 
+            // First, remove any existing tools from this server to prevent duplicates during re-connection
+            this.allTools = this.allTools.filter(tool => tool.serverName !== serverConfig.name);
+
             // List available tools from this server
             if (toolsResult.tools) {
                 this.allTools.push(...toolsResult.tools.map(tool => ({
@@ -75,32 +108,23 @@ export class MCPClient {
             }
         } catch (error) {
             console.error(`❌ Failed to connect to ${serverConfig.name}:`, error);
+            throw error;
         }
     }
 
-    async processUserQuery(userMessage) {
+    async processUserQuery(userMessage, uploadedFiles = []) {
         console.log(`\n💬 Processing user query: "${userMessage}"`);
+        if (uploadedFiles && uploadedFiles.length > 0) {
+            console.log(`📎 With ${uploadedFiles.length} uploaded files`);
+        }
+
+        // Create a smart system prompt that allows natural conversation and intelligent tool usage
+        const systemPrompt = this.createIntelligentSystemPrompt(uploadedFiles);
 
         const messages = [
             {
                 role: "system",
-                content: `You are an AI assistant with access to MCP (Model Context Protocol) tools for document generation.
-
-Available tools:
-${this.allTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n')}
-
-IMPORTANT - Available Files and Paths:
-- Template file: "${config.files.templatePath}" (Word template for historical building renovation reports)
-- Sample data: "${config.files.sampleDataPath}" (contains renovation project data in Chinese)
-- Output directory: "${config.files.outputDirectory}" (save all generated documents here)
-
-When using the insert_template tool:
-- Always use template_path: "${config.files.templatePath}"
-- Use json_data_path: "${config.files.sampleDataPath}" for demo/testing
-- Generate output_path in "${config.files.outputDirectory}" with descriptive names like "${config.files.outputDirectory}renovation_report_YYYY-MM-DD.docx"
-- The tool generates historical building renovation documentation in Chinese
-
-You should automatically use these file paths without asking the user. When the user asks for document generation, immediately use the available template and sample data to demonstrate the functionality.`
+                content: systemPrompt
             },
             {
                 role: "user",
@@ -111,6 +135,40 @@ You should automatically use these file paths without asking the user. When the 
         return await this.chatLoop(messages);
     }
 
+    createIntelligentSystemPrompt(uploadedFiles = []) {
+        const availableTools = this.allTools.length > 0
+            ? `\nAvailable tools:\n${this.allTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n')}`
+            : '\nNo tools are currently available.';
+
+        const filePrompt = uploadedFiles.length > 0
+            ? `\nUploaded files:\n${uploadedFiles.map(file => `- ${file.name} (${file.type || 'unknown type'}) - ${file.path}`).join('\n')}\n\nNote: When tools need file paths, use the paths above.`
+            : '';
+
+        return `You are an intelligent AI assistant with access to MCP (Model Context Protocol) tools. You can:
+
+1. **Chat naturally** - Answer questions, have conversations, provide help and information
+2. **Use tools when appropriate** - Only call tools when the user specifically requests an action that requires them
+
+${availableTools}
+${filePrompt}
+
+**Important guidelines:**
+- Have natural conversations like ChatGPT or Claude
+- Use tools flexiblywhen the user explicitly asks for something that requires them
+- For simple greetings, questions, or general chat, just respond normally without calling any tools
+- When you do use tools, explain what you're doing and why
+- If no tools are available, let the user know and still be helpful with conversation
+
+**Example interactions:**
+- User: "Hello" → Just greet them naturally, no tools needed
+- User: "How are you?" → Chat response, no tools needed  
+- User: "What can you do?" → Explain your capabilities and available tools
+- User: "Generate a document" → Use appropriate tool if available
+- User: "Create a renovation report" → Use document generation tool
+
+Be conversational, helpful, and intelligent about when to use tools.`;
+    }
+
     async chatLoop(messages, maxIterations = 5) {
         let iteration = 0;
 
@@ -118,10 +176,12 @@ You should automatically use these file paths without asking the user. When the 
             iteration++;
             console.log(`\n🔄 Chat iteration ${iteration}`);
 
-            // Prepare tools for OpenRouter format
-            const formattedTools = GeminiLLM.formatToolsForOpenRouter(this.allTools);
+            // Prepare tools for OpenRouter format (only if tools are available)
+            const formattedTools = this.allTools.length > 0
+                ? GeminiLLM.formatToolsForOpenRouter(this.allTools)
+                : null;
 
-            // Send to LLM
+            // Send to LLM - with or without tools depending on availability
             const response = await this.llm.sendToLLM(messages, formattedTools);
 
             if (!response.choices || response.choices.length === 0) {
@@ -134,8 +194,19 @@ You should automatically use these file paths without asking the user. When the 
             // Add assistant message to conversation
             messages.push(message);
 
-            // Check if LLM wants to use tools
+            // Check if LLM wants to use tools (and tools are available)
             if (message.tool_calls && message.tool_calls.length > 0) {
+
+                if (this.allTools.length === 0) {
+                    // LLM tried to use tools but none are available
+                    console.log(`⚠️ LLM attempted tool use but no tools available`);
+                    messages.push({
+                        role: "system",
+                        content: "No tools are currently available. Please respond with a helpful message explaining this to the user."
+                    });
+                    continue;
+                }
+
                 console.log(`🔧 LLM wants to use ${message.tool_calls.length} tool(s)`);
 
                 // Execute each tool call
@@ -159,15 +230,17 @@ You should automatically use these file paths without asking the user. When the 
             return {
                 response: message.content,
                 totalIterations: iteration,
-                conversation: messages
+                conversation: messages,
+                toolsUsed: this.allTools.length > 0 ? 'available' : 'none'
             };
         }
 
         console.log(`⚠️ Reached maximum iterations (${maxIterations})`);
         return {
-            response: "Maximum conversation iterations reached.",
+            response: "I've reached the maximum conversation limit. Please start a new conversation.",
             totalIterations: iteration,
-            conversation: messages
+            conversation: messages,
+            toolsUsed: this.allTools.length > 0 ? 'available' : 'none'
         };
     }
 
@@ -194,6 +267,9 @@ You should automatically use these file paths without asking the user. When the 
         }
 
         try {
+            // Process file paths in tool arguments
+            const processedArgs = await this.processFileArguments(toolArgs);
+
             // Call the tool via MCP (different methods for different client types)
             let result;
 
@@ -201,13 +277,13 @@ You should automatically use these file paths without asking the user. When the 
                 // FastAPI-MCP client
                 result = await serverInfo.client.callTool({
                     name: toolName,
-                    arguments: toolArgs
+                    arguments: processedArgs
                 });
             } else {
                 // Standard MCP client
                 result = await serverInfo.client.callTool({
                     name: toolName,
-                    arguments: toolArgs
+                    arguments: processedArgs
                 });
             }
 
@@ -216,6 +292,131 @@ You should automatically use these file paths without asking the user. When the 
         } catch (error) {
             console.error(`❌ Tool execution failed:`, error);
             return { error: error.message };
+        }
+    }
+
+    async processFileArguments(args) {
+        const processedArgs = { ...args };
+
+        // Check for file paths that need to be converted to file content
+        for (const [key, value] of Object.entries(args)) {
+            if (typeof value === 'string') {
+
+                // Handle MinIO file paths (minio://filename)
+                if (value.startsWith('minio://')) {
+                    try {
+                        const fileName = value.replace('minio://', '');
+
+                        // Get file buffer from MinIO
+                        const fileBuffer = await this.minioHelper.getFileBuffer(fileName);
+                        const fileInfo = await this.minioHelper.getFileInfo(fileName);
+                        const base64Content = fileBuffer.toString('base64');
+
+                        // Replace path with comprehensive file information
+                        processedArgs[key] = {
+                            name: fileName,  // Required by enhanced server API
+                            type: 'file_content',
+                            filename: fileName,
+                            content: base64Content,
+                            original_path: value,
+                            public_url: fileInfo.url,
+                            size: fileInfo.size,
+                            mimetype: fileInfo.mimetype,
+                            source: 'minio',
+                            // For servers that can download via HTTP
+                            download_url: fileInfo.url
+                        };
+
+                        console.log(`📁 Converted MinIO file to content: ${fileName} (${fileInfo.size} bytes)`);
+                        console.log(`🌐 Public URL: ${fileInfo.url}`);
+
+                    } catch (error) {
+                        console.error(`❌ Failed to read MinIO file ${value}:`, error);
+                        // Keep original path as fallback
+                    }
+                }
+
+                // Handle legacy local upload paths for backward compatibility
+                else if (value.startsWith('/uploads/')) {
+                    try {
+                        // Convert local upload path to absolute path
+                        const absolutePath = path.join(this.getProjectRoot(), 'uploads', path.basename(value));
+
+                        // Check if file exists
+                        await fsPromises.access(absolutePath);
+
+                        // Read file content as base64
+                        const fileContent = await fsPromises.readFile(absolutePath);
+                        const base64Content = fileContent.toString('base64');
+                        const fileName = path.basename(value);
+
+                        // Determine the public URL for the file
+                        const publicUrl = this.getPublicFileUrl(fileName);
+
+                        // Replace path with comprehensive file information
+                        processedArgs[key] = {
+                            name: fileName,  // Required by enhanced server API
+                            type: 'file_content',
+                            filename: fileName,
+                            content: base64Content,
+                            original_path: value,
+                            public_url: publicUrl,
+                            size: fileContent.length,
+                            source: 'local',
+                            // For servers that prefer simple paths, provide both
+                            local_path: absolutePath,
+                            // For servers that can download via HTTP
+                            download_url: publicUrl
+                        };
+
+                        console.log(`📁 Converted local file to content: ${fileName} (${fileContent.length} bytes)`);
+                        console.log(`🌐 Public URL: ${publicUrl}`);
+
+                    } catch (error) {
+                        console.error(`❌ Failed to read local file ${value}:`, error);
+                        // Keep original path as fallback
+                    }
+                }
+            }
+        }
+
+        return processedArgs;
+    }
+
+    getPublicFileUrl(fileName) {
+        // Try to determine the public base URL
+        // Support multiple deployment scenarios
+        let baseUrl = process.env.PUBLIC_BASE_URL;
+
+        if (!baseUrl) {
+            // Auto-detect based on common deployment platforms
+            if (process.env.HEROKU_APP_NAME) {
+                baseUrl = `https://${process.env.HEROKU_APP_NAME}.herokuapp.com`;
+            } else if (process.env.VERCEL_URL) {
+                baseUrl = `https://${process.env.VERCEL_URL}`;
+            } else if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+                baseUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+            } else {
+                // Development fallback
+                baseUrl = 'http://localhost:3000';
+            }
+        }
+
+        return `${baseUrl}/uploads/${fileName}`;
+    }
+
+    getProjectRoot() {
+        // Get the directory where this script is located
+        return __dirname;
+    }
+
+    disconnectFromServer(serverName) {
+        if (this.clients.has(serverName)) {
+            this.clients.delete(serverName);
+            this.allTools = this.allTools.filter(tool => tool.serverName !== serverName);
+            console.log(`🔌 Disconnected from server: ${serverName}`);
+        } else {
+            console.warn(`⚠️  Attempted to disconnect from a non-connected server: ${serverName}`);
         }
     }
 
